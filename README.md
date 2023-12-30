@@ -56,20 +56,20 @@ The Job Assignment method deals with variables 𝑥𝑖𝑗, indicating whether 
 
 ### Constraints
 
-  a) ∑ 𝑥𝑖𝑗, 𝑗=1 to 𝑛 = 1, 𝑖 = 1,2, … ,𝑛
+&ensp; a) ∑ 𝑥𝑖𝑗, 𝑗=1 to 𝑛 = 1, 𝑖 = 1,2, … ,𝑛
 
-  b) ∑ 𝑥𝑖𝑗, 𝑖=1 to 𝑛 = 1, 𝑗 = 1,2, … ,𝑛
+&ensp; b) ∑ 𝑥𝑖𝑗, 𝑖=1 to 𝑛 = 1, 𝑗 = 1,2, … ,𝑛
 
 ### Solution Procedure
 
-  a) Transform the cost matrix by subtracting the minimum element in each row and column.
+&ensp; a) Transform the cost matrix by subtracting the minimum element in each row and column.
 
-  b) Mark independent zeros, starting from rows with only one zero. If the number of independent zeros matches the number of workers, an optimal solution is found.
+&ensp; b) Mark independent zeros, starting from rows with only one zero. If the number of independent zeros matches the number of workers, an optimal solution is found.
 
-  c) Cross out rows and columns containing marked zeros until no further steps are possible.
+&ensp; c) Cross out rows and columns containing marked zeros until no further steps are possible.
 
-  d) Subtract the smallest uncrossed element from all uncrossed elements and add it to the intersection of lines.
+&ensp; d) Subtract the smallest uncrossed element from all uncrossed elements and add it to the intersection of lines.
 
-  e) Repeat the process until an optimal solution is reached.
+&ensp; e) Repeat the process until an optimal solution is reached.
 
 This algorithm ensures an efficient assignment of jobs to workers while minimizing the overall completion time.
