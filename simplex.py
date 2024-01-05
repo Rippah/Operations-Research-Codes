@@ -1,127 +1,172 @@
 import numpy as np
+from numpy.linalg import matrix_rank, LinAlgError
 from itertools import combinations
 
-def assert_matrix(A, b, C, problem):
-    assert problem in ['max', 'min'], "Problem mora biti 'max' ili 'min'"
-    assert A.shape[0] == b.shape[0], "Broj redova u A mora biti jednak broju redova u b"
-    assert A.shape[1] == C.shape[1], "Broj kolona u A mora biti jednak broju kolona u C"
-    
-def check_singular(matrix):
-    if np.linalg.matrix_rank(matrix) < matrix.shape[0]:
-        raise ValueError("Matrica je singularna. Potrebno je primeniti pivotiranje.")
+# Funkcija za proveru validnosti matrice
+def validate_matrix(A, b, C, problem):
+    assert problem in ['max', 'min'], "Samo problemi sa minimizacijom ('min') i maksimizacijom ('max') mogu biti rešeni!"
+    assert A.shape[0] == b.shape[0], "Broj redova matrice A mora biti jednak broju redova matrice b!"
+    assert A.shape[1] == C.shape[1], "Broj kolona matrice A mora biti jednak broju kolona matrice C!"
 
-def print_solution(bases_var, not_bases_var, hat_b, problem, Z):
-    for i in range(len(bases_var)):
-        print(f'X{bases_var[i] + 1} = {np.round(hat_b[i][0])}')
-        
-    non_bases = [f'X{i + 1}' for i in range(len(not_bases_var)) if i not in bases_var]
-    for x in non_bases:
-        print(f'{x} = ', end='')
-    print('0')
-    
-    if problem == 'max':
-        print(f'Z_max = {Z[0][0]}')
-    else:
-        print(f'Z_min = {Z[0][0]}')    
+# Funkcija za proveru singularnosti matrice
+def check_singularity(matrix):
+    if matrix_rank(matrix) < matrix.shape[0]:
+        raise ValueError("Matrica ne može biti singularna!")
 
-def simplex(A, b, C, problem='max'):
-    # Provera ulaznih parametara
-    assert_matrix(A, b, C, problem)
+# Funkcija koja proverava da li je postignuto optimalno rešenje
+def is_finished(differences, problem):
+    return np.all(differences >= 0) if problem == 'max' else np.all(differences <= 0)
 
-    # Ako je problem minimizacije, promenite znakove koeficijenata ciljne funkcije
-    if problem == 'min':
-        C = -C
+# Funkcija za ispisivanje rešenja
+def print_solution(iterations, Z, solution, B_indexes, N_indexes):
+    problem = "max" if Z > 0 else "min"
+    print(f"\n\n***Simplex problem za {problem}:***")
+    print(f"\nBroj iteracija: {iterations}")
+    print(f"Z_{problem} = {Z}")
+    print("\nOsnovne promenljive:")
+    for i in range(len(B_indexes)):
+        print(f" X{B_indexes[i]+1} = {solution[i]}")
 
-    # Inicijalizacija
-    (m, n) = np.shape(A)
-    identity_matrix = np.eye(m)
+    print("\nNebazne promenljive:")
+    for i in range(len(N_indexes)):
+        print(f" X{N_indexes[i]+1} =", end='')
+    print(' 0')
+
+# Funkcija koja rešava Simplex metod
+def solve_simplex(A, b, C, problem, limit=20):
+    validate_matrix(A, b, C, problem)
+
+    # Dodavanje identičke matrice dimenzija A
+    identity_matrix = np.eye(A.shape[0])
     zero_matrix = np.zeros((1, len(b)))
-
     A = np.hstack((A, identity_matrix))
     C = np.hstack((C, zero_matrix))
 
-    (m, n) = np.shape(A)
+    (m, n) = A.shape
 
-    check_singular(A[:, :n])
-    
-    # Pronalaženje mogućih kombinacija baznih promenljivih
-    var_combinations = list(combinations([*range(n)], len(b)))
-    
-    # Izračunavanje inverza matrice B
-    for i in var_combinations:
-        bases_var = list(i)
-        not_bases_var = [x for x in range(n) if x not in bases_var]
-        
-        try:
-            Binv = np.linalg.inv(A[:, bases_var])
-            Xb = np.matmul(Binv, b)
-            
-            if not (np.any(Xb < 0)):
-                break
-        except:
-            pass 
-        
-    omega = np.matmul(C[:, bases_var], Binv)
-    
-    # Glavna petlja
-    iteration = 1
-    while True:
-        hat_b = np.matmul(Binv, b)
-        Zi = []
-        
-        for j in not_bases_var:
-            Zj = np.matmul(omega, A[:, j])
-            Zi.append(Zj - C[:, j])
-                    
-        if problem == 'max':
-            stop_condition = min(Zi) >= 0
-        else:
-            stop_condition = max(Zi) <= 0
+    check_singularity(A)
+    B_indexes = [*range(n - m, n)]
+    N_indexes = [i for i in range(n) if i not in B_indexes]
 
-        print(f"\nIteracija {iteration}:")
+    try:
+        B_inv = np.linalg.inv(A[:, B_indexes]) if not (np.linalg.inv(A[:, B_indexes]) @ b < 0).any() else None #Postavljamo inverznu matricu akko su sve vrednosti nenegativne
+    except LinAlgError:
+        pass
 
-        print("Bazne Varijable (Xb):", bases_var)
-        print("Nebazne Varijable:", not_bases_var)
-        print("Trenutno Resenje (Zi):", np.matmul(C[:, bases_var], hat_b)[0][0])
+    if B_inv is None: #U slucaju da uslov nije ispunjen, pokusacemo da nadjemo neku drugu kombinaciju koja nije trenutna bazna i ako nadjemo takvu postace nova bazna
+        combs = list(combinations([*range(n)], len(b)))
 
-        if stop_condition:
-            Z = np.matmul(C[:, bases_var], hat_b)
-            print_solution(bases_var, not_bases_var, hat_b, problem, Z)
+        for comb in combs:
+            B_indexes = list(comb)
+            N_indexes = [i for i in range(n) if i not in B_indexes]
+
+            try:
+                B_inv = np.linalg.inv(A[:, B_indexes])
+                X_b = B_inv @ b
+
+                if (X_b < 0).any():
+                    break
+            except LinAlgError:
+                pass
+
+    iterations = 1
+
+    omega = C[:, B_indexes] @ B_inv #Faktor mnozenja svakog reda matrice za proveru da li smo stigli do kraja
+    b_hat = B_inv @ b
+    Z = C[:, B_indexes] @ b_hat
+
+    while iterations < limit:
+        differences = omega @ A[:, N_indexes] - C[:, N_indexes] #Ako je svako ai >= 0 za max ili ai <= 0 za min, onda smo nasli nase optimalno resenje
+
+        if is_finished(differences, problem):
+            Z_value = Z[0][0]
+            solution = list(b_hat.flatten())
+            print_solution(iterations, Z_value, solution, B_indexes, N_indexes)
             return
 
-        k = np.argmin(Zi)
-        k = not_bases_var[k]
-        
-        Yk = np.matmul(Binv, np.vstack((A[:, k])))
-        Yk = Yk.reshape(-1)  # Preoblikovanje Yk u jednodimenzionalni niz
-        hat_b = hat_b.reshape(-1)  # Preoblikovanje hat_b u jednodimenzionalni niz
-        Yk_div_hat_b = (np.divide(hat_b, Yk, out = np.zeros_like(Yk), where = Yk != 0))  
-        r = np.argmin(Yk_div_hat_b)
-        
-        new_not_bases_var = bases_var.pop(r)
-        bases_var.append(k)
-        
-        not_bases_var.remove(k)       
-        not_bases_var.append(new_not_bases_var)
-        
-        bases_var.sort()
-        not_bases_var.sort()
-        Binv = np.linalg.inv(A[:, bases_var])
+        k = np.argmin(differences) if problem == 'max' else np.argmax(differences) #Najnegativniji problem uzimamo za max, a najpozitivniji za min
+        k_difference = differences[:, k] #Uzimamo ceo red problema
+        k = N_indexes[k]
 
-        iteration += 1
+        Y_k = B_inv @ A[:, k]   #Radimo sad proveru pivot elementa
+        Y_k = Y_k.reshape(B_inv.shape[0], 1)
+        np.seterr(divide='ignore', invalid='ignore')
+        quotient = b_hat / Y_k  #Uzimamo pivot za element koji daje adekvatnu promenu (onaj ciji element nam najvise deli red)
+        pivot_row = np.argmin([val for val in quotient if val >= 0])    #Prvo delimo pivot red sa pivotom
 
-# Definisanje problema
-A = np.array([[1, 0, 1, 0, 0],
-              [0, 2, 0, 1, 0],
-              [3, 2, 0, 0, 1]])
+        non_pivot_rows = [i for i in range(B_inv.shape[0]) if i != pivot_row] #Sad radimo pivotiranje ostalih redova
 
-b = np.array([[4],
-              [12],
-              [18]])  # Vrednost na desnoj strani drugog ograničenja
+        e_p = Y_k[pivot_row][0]
+        e_r = B_inv[pivot_row, :]
 
-C = np.array([[3, 5, 0, 0, 0]])
+        B_inv[non_pivot_rows, :] -= [e_r * Y_k[row][0] / e_p for row in non_pivot_rows] #eij = eij - e_r * Yik / e_p gde je k element te iste kolone sa kojom se oduzima element
+        b_hat[non_pivot_rows] -= b_hat[pivot_row] * Y_k[non_pivot_rows] / e_p
+        omega[0] -= B_inv[pivot_row] * k_difference / e_p   #Menjamo element kojim smo uzeli da pivotiramo
+        Z -= b_hat[pivot_row] * k_difference / e_p  #Menjamo nase trenutno resenje
+        B_inv[pivot_row] = B_inv[pivot_row] / e_p   #Menjamo i vrednost nase matrice tako sto delimo taj red pivotom
+        b_hat[pivot_row] = b_hat[pivot_row] / e_p   #Menjamo i njegov b_hat element
 
-user_input = input("Unesite 'min' za minimizaciju ili 'max' za maksimizaciju: ").lower()
+        tmp = N_indexes[k]  #Menjamo bazne i nebazne koeficijente
+        N_indexes[k] = B_indexes[pivot_row]
+        B_indexes[pivot_row] = tmp
+        N_indexes.sort()
 
-# Poziv funkcije za rešavanje
-simplex(A, b, C, problem=user_input)
+        iterations += 1
+
+    return None
+
+# Primeri:
+
+A = np.array([
+    [0.5, 2, 1],
+    [1, 2, 4]
+])
+
+b = np.array([
+    [24],
+    [60]
+])
+
+C = np.array([
+    [6, 14, 13]
+])
+
+solve_simplex(A, b, C, 'max')
+
+
+A = np.array([
+    [1, 0, 1],
+    [0, 2, 0],
+    [3, 2, 0,]
+])
+
+b = np.array([
+    [4],
+    [12],
+    [18]
+])
+
+C = np.array([
+    [3, 5, 0]
+])
+
+solve_simplex(A, b, C, 'max')
+
+
+A = np.array([
+    [1,  1,  1, 1, 1, 1],
+    [2, -1, -2, 1, 0, 0],
+    [0,  0,  1, 1, 2, 1]
+])
+
+b = np.array([
+    [6],
+    [4],
+    [4]
+])
+
+C = np.array([
+    [-1, -2, 1, -1, -4, 2]
+])
+
+solve_simplex(A, b, C, 'min')
