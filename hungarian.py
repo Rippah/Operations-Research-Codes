@@ -114,4 +114,9 @@ cost_matrix = np.array([[10, 4, 6, 10, 12], [11, 7, 7, 9, 14], [13, 8, 12, 14, 1
 print(f"Pre madjarske metode: \n{cost_matrix}")
 marked_zeroes = hungarian_algorithm(cost_matrix.copy())
 result, result_matrix = ans_calculation(cost_matrix, marked_zeroes)
-print(f"Nakon madjarske metode: {result:.0f}\n{result_matrix}")
+print(f"\nNakon madjarske metode: {result:.0f}\n{result_matrix}")
+marked_zeroes.sort()
+for i in range(len(marked_zeroes)):
+    igrac, cena = list(marked_zeroes[i])
+    igrac_string = chr(ord('a') + igrac)
+    print(f"Igrac {igrac_string.upper()} igra sa cenom od {result_matrix[marked_zeroes[i]]}")
