@@ -72,13 +72,8 @@ def adjust_matrix(matrix, cover_rows, cover_cols):
             for col in range(len(matrix[row])):
                 if col not in cover_cols:
                     min_num = min(min_num, matrix[row][col])
-
-    for row in range(n):
-        if row not in cover_rows:
-            for col in range(len(matrix[row])):
-                if col not in cover_cols:
                     matrix[row][col] -= min_num
-
+    
     for row in cover_rows:
         for col in cover_cols:
             matrix[row][col] += min_num
