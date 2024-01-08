@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 
 def north_west_corner(cost, supply, demand):
     rows, cols = len(supply), len(demand)
@@ -91,8 +92,36 @@ def vogels_approximation_method(cost, supply, demand):
     print(allocation)
     print("Zopt = ", Z_opt)
 
+def modi_method(cost, supply, demand):
+    original_cost = cost.copy()
+    allocation = np.zeros((len(supply), len(demand)))
+    u = np.zeros(len(supply))
+    v = np.zeros(len(demand))
+    while np.sum(supply) > 0 and np.sum(demand) > 0:
+        for i in range(len(supply)):
+            for j in range(len(demand)):
+                if allocation[i, j] > 0:
+                    if u[i] is None and v[j] is not None:
+                        u[i] = cost[i, j] - v[j]
+                    elif v[j] is None and u[i] is not None:
+                        v[j] = cost[i, j] - u[i]
+        penalties = cost - u[:, None] - v
+        i, j = np.unravel_index(np.argmin(penalties, axis=None), penalties.shape)
+        quantity = min(supply[i], demand[j])
+        allocation[i, j] = quantity
+        supply[i] -= quantity
+        demand[j] -= quantity
+        if supply[i] == 0:
+            cost[i, :] = np.inf 
+        if demand[j] == 0:
+            cost[:, j] = np.inf
+    Z_opt = np.sum(original_cost * allocation)
+    print("Matrica raspodele pomocu MODI metode:")
+    print(allocation)
+    print("Zopt = ", Z_opt)
+
+
 def solve_transport_problem():
-    # Definisanje problema
     cost = np.array([[10., 12., 0.], [8., 4., 3.], [6., 9., 4.], [7., 8., 5.]]) #Matrica troskova
     supply = np.array([20., 30., 20., 10.]) #Niz ponude
     demand = np.array([10., 40., 30.]) #Niz potraznje
@@ -101,6 +130,7 @@ def solve_transport_problem():
     print("1. Metod Severozapadnog Ugla")
     print("2. Metod Minimalnih Cena")
     print("3. Vogelova Metoda")
+    print("4. MODI Metoda")
     choice = int(input("Unesite broj izbora: "))
 
     if choice == 1:
@@ -109,6 +139,9 @@ def solve_transport_problem():
         minimum_cost_method(cost, supply, demand)
     elif choice == 3:
         vogels_approximation_method(cost, supply, demand)
+    elif choice == 4:
+        modi_method(cost, supply, demand)
+        
     else:
         print("Pokusajte drugi put nesto sto pripada tom opsegu, molim Vas.")
 

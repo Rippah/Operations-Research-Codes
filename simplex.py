@@ -106,11 +106,8 @@ def solve_simplex(A, b, C, problem, limit=20):
         B_inv[pivot_row] = B_inv[pivot_row] / e_p   #Menjamo i vrednost nase matrice tako sto delimo taj red pivotom
         b_hat[pivot_row] = b_hat[pivot_row] / e_p   #Menjamo i njegov b_hat element
 
-        tmp = N_indexes[k]  #Menjamo bazne i nebazne koeficijente
-        N_indexes[k] = B_indexes[pivot_row]
-        B_indexes[pivot_row] = tmp
-        N_indexes.sort()
-
+        B_indexes[pivot_row], N_indexes[k] = N_indexes[k], B_indexes[pivot_row]
+        
         iterations += 1
 
     return None
